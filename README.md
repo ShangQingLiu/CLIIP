@@ -1,5 +1,5 @@
 # CLIIP
-
+![image](https://github.com/ShangQingLiu/CLIIP/blob/main/figure/readme_2.png)
 \[Arxiv\] <https://arxiv.org/abs/2006.04646>
 ## project work flow
 1. (data->pickle_data)->stop_data->model_G(finish built up all the relation)
@@ -8,6 +8,8 @@
 2. simu->SEIR
 
 1 + 2 => SEIR + model_G ->training_data_example --- lightgbm Model partial data ---> result
+
+![image](https://github.com/ShangQingLiu/CLIIP/blob/main/figure/readme_1.png)
 ##
 
 
