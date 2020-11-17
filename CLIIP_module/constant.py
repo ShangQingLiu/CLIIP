@@ -1,4 +1,5 @@
 from fractions import Fraction
+import math
 
 start_day = 20
 start_hour = "00"
@@ -44,22 +45,53 @@ incubation_probability = {
     "incubation_day_15": 0.01,
     "incubation_day_16": 0.01,
 }
-incubation_probability_list = [1] * incubation_probability["incubation_day_1"] + \
-                              [2] * incubation_probability["incubation_day_2"] + \
-                              [3] * incubation_probability["incubation_day_3"] + \
-                              [4] * incubation_probability["incubation_day_4"] + \
-                              [5] * incubation_probability["incubation_day_5"] + \
-                              [6] * incubation_probability["incubation_day_6"] + \
-                              [7] * incubation_probability["incubation_day_7"] + \
-                              [8] * incubation_probability["incubation_day_8"] + \
-                              [9] * incubation_probability["incubation_day_9"] + \
-                              [10] * incubation_probability["incubation_day_10"] + \
-                              [11] * incubation_probability["incubation_day_11"] + \
-                              [12] * incubation_probability["incubation_day_12"] + \
-                              [13] * incubation_probability["incubation_day_13"] + \
-                              [14] * incubation_probability["incubation_day_14"] + \
-                              [15] * incubation_probability["incubation_day_15"] + \
-                              [15] * incubation_probability["incubation_day_15"]
+incubation_probability_list = [1] *(int)( incubation_probability["incubation_day_1"] *100)+ \
+                              [2] *(int)( incubation_probability["incubation_day_2"] *100)+ \
+                              [3] *(int)( incubation_probability["incubation_day_3"] *100)+ \
+                              [4] *(int)( incubation_probability["incubation_day_4"] *100)+ \
+                              [5] *(int)( incubation_probability["incubation_day_5"] *100)+ \
+                              [6] *(int)( incubation_probability["incubation_day_6"] *100)+ \
+                              [7] *(int)( incubation_probability["incubation_day_7"] *100)+ \
+                              [8] *(int)( incubation_probability["incubation_day_8"] *100)+ \
+                              [9] *(int)( incubation_probability["incubation_day_9"] *100)+ \
+                              [10] *(int)( incubation_probability["incubation_day_10"] *100)+ \
+                              [11] *(int)( incubation_probability["incubation_day_11"] *100)+ \
+                              [12] *(int)( incubation_probability["incubation_day_12"] *100)+ \
+                              [13] *(int)( incubation_probability["incubation_day_13"] *100)+ \
+                              [14] *(int)( incubation_probability["incubation_day_14"] *100)+ \
+                              [15] *(int)( incubation_probability["incubation_day_15"] *100)+ \
+                              [16] *(int)( incubation_probability["incubation_day_16"] *100)
+
+# ensemble learning constant
+wrong_sample1 = [0, 0, 0, 0, 0, 0, 0, 0]
+
+# training_X = [deltaT,deltaD_reverse,I1,I2,I3,E1,E2,E3]
+deltaT_index = 0
+deltaD_reverse_index = 1
+layer_one_I_index = 2
+layer_two_I_index = 3
+layer_three_I_index = 4
+layer_one_E_index = 5
+layer_two_E_index = 6
+layer_three_E_index = 7
+
+# light gbm parameter
+light_gbm_params = {
+    'learning_rate': 0.001,
+    'boosting_type': 'dart',
+    'objective': 'binary',
+    'metric': 'binary_logloss',
+    'sub_feature': 0.5,
+    'num_leaves': 100,
+    'min_data': 100,
+    'max_depth': 50,
+    'max_bin': 100
+}
+
+train_test_split_parameter = {
+    'test_size': 0.5,
+    'random_state': 0
+}
 
 
 def gen_X_Y_ID_path(day, hour):

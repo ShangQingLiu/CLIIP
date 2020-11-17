@@ -10,7 +10,8 @@
 1 + 2 => SEIR + model_G ->training_data_example --- lightgbm Model partial data ---> result
 
 ![image](https://github.com/ShangQingLiu/CLIIP/blob/main/figure/readme_1.png)
-##
+## 
+
 
 
 

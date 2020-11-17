@@ -6,4 +6,8 @@ if __name__ == "__main__":
     # ensemble learning
     ensemble_model = Ensemble_model()
     ensemble_model.import_data()
+    ensemble_model.incubation_update()
+    ensemble_model.ensemble_lightGBM()
+
+
     print(f"ensemble_model.varX:{ensemble_model.varX}")
