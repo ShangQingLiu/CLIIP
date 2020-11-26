@@ -73,8 +73,8 @@ class Ensemble_model:
             index = index + 1
 
     def incubation_update(self):
-        x_list_queue = self.x_list_queue
-        y_list_queue = self.y_list_queue
+        x_list_queue = self.merge_all_dict(self.varX)
+        y_list_queue = self.merge_all_dict(self.varY)
         incubation_day = random.choice(incubation_probability_list)
         x_list_queue_len = len(x_list_queue)
         if x_list_queue_len > 1:
@@ -92,7 +92,9 @@ class Ensemble_model:
             pass
         self.x_list_queue = x_list_queue
 
-    def pre_processing(self, x_list_queue: dict, y_list_queue: dict):
+    def pre_processing(self):
+        x_list_queue = self.x_list_queue
+        y_list_queue = self.y_list_queue
         deltaT_list = []
         deltaD_reverse_list = []
         for id in list(x_list_queue.keys()):
@@ -143,3 +145,10 @@ class Ensemble_model:
                             k in changed_group and original_group[k] != changed_group[k] and changed_group[k] == 1}
         print(f"length of not_shared_items:{len(not_shared_items)}")
         return list(not_shared_items.keys())
+
+    @staticmethod
+    def merge_all_dict(list_of_dict_element: list) -> dict:
+        merge_dict = {}
+        for dict_element in list_of_dict_element:
+            merge_dict = {**merge_dict, **dict_element}
+        return merge_dict

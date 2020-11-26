@@ -7,6 +7,7 @@ if __name__ == "__main__":
     ensemble_model = Ensemble_model()
     ensemble_model.import_data()
     ensemble_model.incubation_update()
+    ensemble_model.pre_processing()
     ensemble_model.ensemble_lightGBM()
 
 
