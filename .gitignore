@@ -20,5 +20,6 @@ CLIIP_module/train_data/both_infected_and_susceptible_people_have_wore_mask/*
 CLIIP_module/train_data/both_infected_and_susceptible_people_not_have_wore_mask/*
 CLIIP_module/train_data/only_infected_wore_mask/*
 CLIIP_module/train_data/only_susceptible_people_wore_mask/*
+CLIIP_module/__pycache__/*
 
 
