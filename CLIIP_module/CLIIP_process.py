@@ -36,17 +36,20 @@ def CLIIP_process():
         for hour in hours:
             X_path, Y_path, ID_path = gen_X_Y_ID_path(day, hour)
             if isfile(X_path) or isfile(Y_path):
+                update_iterate_time = update_iterate_time + 1
                 continue
             if update_iterate_time >= len(time_stamps):
                 break
             model_maintainer, update_flag = seir_modle.model_update(day, hour, model_maintainer,
                                                                     time_stamps[update_iterate_time])
             print("%%%%%%%%%%%%%%%%%%%%%%")
-            print("s_number", len(model_maintainer["S"][1]))
-            print("e_number", len(model_maintainer["E"][1]))
+            print("S_number", len(model_maintainer["S"][1]))
+            print("E_number", len(model_maintainer["E"][1]))
             print("I_number", len(model_maintainer["I"][1]))
-            # print("Mask_I_number", len(model_maintainer["Mask_I"][1]))
             print("R_number", len(model_maintainer["R"][1]))
+            print("Sq_number", len(model_maintainer["Sq"][1]))
+            print("Eq_number", len(model_maintainer["Eq"][1]))
+            print("H_number", len(model_maintainer["H"][1]))
             print("%%%%%%%%%%%%%%%%%%%%%%")
             update_iterate_time = update_iterate_time + 1
 
@@ -62,6 +65,7 @@ def CLIIP_process():
             X_group = []
             Y_group = []
             record_id_list = []
+
             no_infect_combine.extend(model_maintainer['S'][1] +
                                      model_maintainer['Sq'][1] +
                                      model_maintainer['E'][1] +
@@ -70,38 +74,41 @@ def CLIIP_process():
 
             infect_combine.extend(model_maintainer['I'][1])
             # infect_combine.extend(model_maintainer['Mask_I'][1])
-            limit_count_from_infect = len(infect_combine)
+            num_infected = len(infect_combine)
 
             # running the same amount as infected for balancing the non-infected data
-            for no_infector in no_infect_combine:
-                limit_count_from_infect = limit_count_from_infect - 1
-                if limit_count_from_infect < 0:
+            for not_infected_person in no_infect_combine:
+                num_infected = num_infected - 1
+
+                if num_infected < 0:
                     break
                 model_util_obj = model_util.model_util(day, int(hour))
-                train_data_X = model_util_obj.get_train_data_X(model_maintainer, no_infector)
-                X_element = {str(no_infector): train_data_X}
+                train_data_X = model_util_obj.get_train_data_X(model_maintainer, not_infected_person)
+                X_element = {str(not_infected_person): train_data_X}
                 X_group.append(X_element)
-                Y_element = {str(no_infector): 0}
+                Y_element = {str(not_infected_person): 0}
                 Y_group.append(Y_element)
+
                 del model_util_obj
-                record_id_list.append(no_infector)
+                record_id_list.append(not_infected_person)
             print("finish finding false infected")
 
-            for infector in infect_combine:
+            for infected in infect_combine:
                 model_util_obj = model_util.model_util(day, int(hour))
-                train_data_X = model_util_obj.get_train_data_X(model_maintainer, infector)
-                X_element = {str(infector): train_data_X}
+                train_data_X = model_util_obj.get_train_data_X(model_maintainer, infected)
+                X_element = {str(infected): train_data_X}
                 X_group.append(X_element)
-                Y_element = {str(infector): 1}
+                Y_element = {str(infected): 1}
                 Y_group.append(Y_element)
                 del model_util_obj
-                record_id_list.append(infector)
+                record_id_list.append(infected)
             print("finish finding true infected")
 
             save_pickle(X_path, X_group)
             save_pickle(Y_path, Y_group)
             save_pickle(ID_path, record_id_list)
             print("finish saving data")
+            print("\n\n")
 
             # draw the line for test
             # draw_SEIR_process(Data)

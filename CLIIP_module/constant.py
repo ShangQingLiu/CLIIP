@@ -9,9 +9,13 @@ days = [i for i in range(20, 29)]
 time_stamps = [i for i in range(1, 399)]
 SEIR_simulation_result_statistic = '../simu/model.mat'
 id_list_path = '../id_list.pkl'
+tmp_id_list_path = '../tmp_id_list.pkl'
+debug_flag = True
 people_interactive_graph_path = f"../stop_data/day{start_day}_0"
 graph_path_root = "../stop_data/day"
 model_graph_path_root = "../model_G/"
+total_people =4810
+group_size_factor = 3
 wearing_mask_path = {
     "ALL_NOT_WEAR_MASK": "both_infected_and_susceptible_people_not_have_wore_mask",
     "OTHER_WEAR_MASK": "only_susceptible_people_wore_mask",
@@ -25,7 +29,8 @@ wearing_mask_probability = {
     "ALL_WEAR_MASK": Fraction(1, 60),  # run in 4
 }
 current_status = "ALL_NOT_WEAR_MASK"
-training_data_save_path_root = f"./train_data/{wearing_mask_path[current_status]}/day"
+current_training_data_root = 'one_third_train_data'
+training_data_save_path_root = f"./{current_training_data_root}/{wearing_mask_path[current_status]}/day"
 
 incubation_probability = {
     "incubation_day_1": 0.08,

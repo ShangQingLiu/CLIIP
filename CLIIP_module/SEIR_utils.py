@@ -1,5 +1,5 @@
 from math import radians, cos, sin, sqrt, atan2, floor
-
+from .constant import group_size_factor
 
 class SEIR_utils:
     @staticmethod
@@ -38,13 +38,22 @@ class SEIR_utils:
     @staticmethod
     def init_model_maintainer(model, time_step, probability) -> dict and dict:
         model_maintainer = {}
-        S_number = int(model[time_step][0])
-        E_number = floor(int(model[time_step][1]) * probability)
-        I_number = floor(int(model[time_step][2]) * probability)
-        Sq_number = floor(int(model[time_step][3]) * probability)
-        Eq_number = floor(int(model[time_step][4]) * probability)
-        H_number = floor(int(model[time_step][5]) * probability)
-        R_number = floor(int(model[time_step][6]) * probability)
+        S_number = int(model[time_step][0] //group_size_factor )
+        E_number = floor(int(model[time_step][1]) * probability//group_size_factor)
+        I_number = floor(int(model[time_step][2]) * probability//group_size_factor)
+        Sq_number = floor(int(model[time_step][3]//group_size_factor))
+        Eq_number = floor(int(model[time_step][4]//group_size_factor))
+        H_number = floor(int(model[time_step][5]//group_size_factor))
+        R_number = floor(int(model[time_step][6]) * (model[time_step][5] + model[time_step][2] * probability) / (
+                model[time_step][5] + model[time_step][2]))//group_size_factor
+        print("expect S_number ", S_number)
+        print("expect E_number ", E_number)
+        print("expect I_number ", I_number)
+        print("expect R_number ", R_number)
+        print("expect Sq_number ", Sq_number)
+        print("expect Eq_number ", Eq_number)
+        print("expect H_number ", H_number)
+
         model_maintainer.update({"S": [S_number, []],
                                  "E": [E_number, []],
                                  "I": [I_number, []],

@@ -16,10 +16,14 @@ pickle_data/*
 redundant/*
 training_data_example/*
 model_G/*
+CLIIP_module/test.pdf
+CLIIP_module/one_third_train_data/*
+CLIIP_module/test_train_data/*
 CLIIP_module/train_data/both_infected_and_susceptible_people_have_wore_mask/*
 CLIIP_module/train_data/both_infected_and_susceptible_people_not_have_wore_mask/*
 CLIIP_module/train_data/only_infected_wore_mask/*
 CLIIP_module/train_data/only_susceptible_people_wore_mask/*
 CLIIP_module/__pycache__/*
+tmp_id_list.pkl
 
 

@@ -7,7 +7,7 @@ import scipy.io as sio
 # custom module
 from CLIIP_module.SEIR_utils import SEIR_utils
 from CLIIP_module.constant import SEIR_simulation_result_statistic, id_list_path, people_interactive_graph_path, \
-    model_graph_path_root, graph_path_root, current_status, wearing_mask_probability
+    model_graph_path_root, graph_path_root, current_status, wearing_mask_probability, tmp_id_list_path,group_size_factor
 
 
 class SEIR():
@@ -58,12 +58,28 @@ class SEIR():
         except Exception as e:
             print(e)
 
+    @staticmethod
+    def dump_tmp_id_list(tmp_id_list):
+        try:
+            with open(tmp_id_list_path, 'wb') as file:
+                pickle.dump(tmp_id_list, file)
+        except Exception as e:
+            print(e)
+
+    @staticmethod
+    def find_tmp_id_list() -> list:
+        try:
+            with open(tmp_id_list_path, 'rb') as id_list_input:
+                id_list = pickle.load(id_list_input)
+                return id_list
+        except Exception as e:
+            print(e)
+
     def model_init(self, day, hour, start_time_step=0) -> dict:
         id_list = self.find_id_list()
         matfn = SEIR_simulation_result_statistic
         model = sio.loadmat(matfn)["AA"]
         print("start_time_step", start_time_step)
-        print("start_time_step_type", type(start_time_step))
         # {key:type,value:[chage_number,[id_1,id_2,id_3...]]}
         model_maintainer, model_number_dict = SEIR_utils.init_model_maintainer(model, start_time_step,
                                                                                wearing_mask_probability[current_status])
@@ -72,104 +88,157 @@ class SEIR():
         # a = [1,2,3,4,5]
         # b = [1,2]
         # a = [e for e in a if e not in b]
+
         print("id_list len", len(id_list))
         tmp_list = id_list
+        tmp_list = tmp_list[:len(tmp_list) //group_size_factor]
+        self.dump_tmp_id_list(tmp_list)
         if model_number_dict['R_number'] > 0:
-
-            model_maintainer["R"][1] = random.sample(tmp_list, int(model_number_dict['R_number']))
+            model_maintainer["R"][1] = random.sample(tmp_list, int(model_number_dict['R_number']//group_size_factor))
             tmp_list = [e for e in tmp_list if e not in model_maintainer["R"][1]]
         else:
             model_maintainer["R"][1] = []
-        if model_number_dict['H_number'] > 0:
 
-            model_maintainer["H"][1] = random.sample(tmp_list, int(model_number_dict['H_number']))
+        if model_number_dict['H_number'] > 0:
+            model_maintainer["H"][1] = random.sample(tmp_list, int(model_number_dict['H_number']//group_size_factor))
             tmp_list = [e for e in tmp_list if e not in model_maintainer["H"][1]]
         else:
             model_maintainer["H"][1] = []
+
         if model_number_dict['Eq_number'] > 0:
-            model_maintainer["Eq"][1] = random.sample(tmp_list, int(model_number_dict['Eq_number']))
+            model_maintainer["Eq"][1] = random.sample(tmp_list, int(model_number_dict['Eq_number']//group_size_factor))
             tmp_list = [e for e in tmp_list if e not in model_maintainer["Eq"][1]]
         else:
             model_maintainer["Eq"][1] = []
+
         if model_number_dict['Sq_number'] > 0:
-            model_maintainer["Sq"][1] = random.sample(tmp_list, int(model_number_dict['Sq_number']))
+            model_maintainer["Sq"][1] = random.sample(tmp_list, int(model_number_dict['Sq_number']//group_size_factor))
             tmp_list = [e for e in tmp_list if e not in model_maintainer["Sq"][1]]
         else:
             model_maintainer["Sq"][1] = []
-        if model_number_dict['I_number'] > 0:
-            I_number_split_1, I_number_split_2 = SEIR_utils.split_number(model_number_dict['I_number'])
-            model_maintainer["I"][0] = int(I_number_split_1)
-            model_maintainer["I"][1] = random.sample(tmp_list, int(I_number_split_1))
-            tmp_list = [e for e in tmp_list if e not in model_maintainer["I"][1]]
-            read_path = people_interactive_graph_path
-            with open(read_path, "rb") as iGnput_file:
-                z = pickle.load(iGnput_file)
-                # print(f"z: {z}")
-                # print(f"z_type: {type(z)}")
-                # print(f"read_path: {read_path}")
-                G = self.build_edge(z, day, hour)
-            mask_i_possible_list = []
-            for infect_person in model_maintainer["I"][1]:
-                if G.has_node(infect_person):
-                    successors_list = G.successors(infect_person)
-                    mask_i_possible_list.extend(successors_list)
-                    for successors in successors_list:
-                        mask_i_possible_list.extend(G.successors(successors))
-            mask_i_possible_list = [e for e in mask_i_possible_list if e in tmp_list]
-            model_maintainer.update({"Mask_I": [I_number_split_2, []]})
-            if int(I_number_split_2 - 5) < len(mask_i_possible_list) and int(I_number_split_2 - 5) > 0:
-                print(f"I_number_split_2;{int(I_number_split_2 - 5)}")
-                print(f"len I;{len(mask_i_possible_list)}")
-                model_maintainer["Mask_I"][1] = random.sample(mask_i_possible_list, int(I_number_split_2 - 5))
-                tmp_list = [e for e in tmp_list if e not in model_maintainer["Mask_I"][1]]
-                other = random.sample(tmp_list, 5)
-                model_maintainer["Mask_I"][1].extend(other)
-            else:
-                model_maintainer["Mask_I"][1] = random.sample(mask_i_possible_list, len(mask_i_possible_list))
-                tmp_list = [e for e in tmp_list if e not in model_maintainer["Mask_I"][1]]
-                if I_number_split_2 - len(mask_i_possible_list) >= 0:
-                    other = random.sample(tmp_list, I_number_split_2)
-                    model_maintainer["Mask_I"][1].extend(other)
 
-            # add back to I
-            model_maintainer["I"][0] = model_maintainer["I"][0] + model_maintainer["Mask_I"][0]
-            model_maintainer["I"][1].extend(model_maintainer["Mask_I"][1])
+        if model_number_dict['I_number'] > 0:
+            model_maintainer["I"][1] = random.sample(tmp_list, int(model_number_dict['I_number']//group_size_factor))
+            tmp_list = [e for e in tmp_list if e not in model_maintainer["I"][1]]
         else:
             model_maintainer["I"][1] = []
+
+        # if model_number_dict['I_number'] > 0:
+        #     I_number_split_1, I_number_split_2 = SEIR_utils.split_number(model_number_dict['I_number'])
+        #     model_maintainer["I"][0] = int(I_number_split_1)
+        #     model_maintainer["I"][1] = random.sample(tmp_list, int(I_number_split_1))
+        #     tmp_list = [e for e in tmp_list if e not in model_maintainer["I"][1]]
+        #     read_path = people_interactive_graph_path
+        #
+        #     with open(read_path, "rb") as G_input_file:
+        #         z = pickle.load(G_input_file)
+        #         # print(f"z: {z}")
+        #         # print(f"z_type: {type(z)}")
+        #         # print(f"read_path: {read_path}")
+        #         G = self.build_edge(z, day, hour)
+        #     mask_i_possible_list = []
+        #
+        #     for infect_person in model_maintainer["I"][1]:
+        #         if G.has_node(infect_person):
+        #             successors_list = G.successors(infect_person)
+        #             mask_i_possible_list.extend(successors_list)
+        #             for successors in successors_list:
+        #                 mask_i_possible_list.extend(G.successors(successors))
+        #     mask_i_possible_list = [e for e in mask_i_possible_list if e in tmp_list]
+        #     model_maintainer.update({"Mask_I": [I_number_split_2, []]})
+        #
+        #     if int(I_number_split_2 - 5) < len(mask_i_possible_list) and int(I_number_split_2 - 5) > 0:
+        #         print(f"I_number_split_2;{int(I_number_split_2 - 5)}")
+        #         print(f"len I;{len(mask_i_possible_list)}")
+        #         model_maintainer["Mask_I"][1] = random.sample(mask_i_possible_list, int(I_number_split_2 - 5))
+        #         tmp_list = [e for e in tmp_list if e not in model_maintainer["Mask_I"][1]]
+        #         other = random.sample(tmp_list, 5)
+        #         model_maintainer["Mask_I"][1].extend(other)
+        #     else:
+        #         model_maintainer["Mask_I"][1] = random.sample(mask_i_possible_list, len(mask_i_possible_list))
+        #         tmp_list = [e for e in tmp_list if e not in model_maintainer["Mask_I"][1]]
+        #         if I_number_split_2 - len(mask_i_possible_list) >= 0:
+        #             other = random.sample(tmp_list, I_number_split_2)
+        #             model_maintainer["Mask_I"][1].extend(other)
+        #
+        #     # add back to I
+        #     model_maintainer["I"][0] = model_maintainer["I"][0] + model_maintainer["Mask_I"][0]
+        #     model_maintainer["I"][1].extend(model_maintainer["Mask_I"][1])
+        # else:
+        #     model_maintainer["I"][1] = []
+
+        # if model_number_dict['E_number'] > 0:
+        #     mask_i_possible_list = []
+        #     combine_I = []
+        #     combine_I.extend(model_maintainer["I"][1])
+        #     # combine_I.extend(model_maintainer["Mask_I"][1])
+        #     for infect_person in combine_I:
+        #         if G.has_node(infect_person):
+        #             successors_list = G.successors(infect_person)
+        #             mask_i_possible_list.extend(successors_list)
+        #     mask_i_possible_list = [e for e in mask_i_possible_list if e in tmp_list]
+        #     E_number = model_number_dict['E_number'];
+        #     if model_number_dict['E_number'] > len(mask_i_possible_list):
+        #         E_number = len(mask_i_possible_list)
+        #         model_maintainer["E"][0] = E_number
+        #         print("E_number change", E_number)
+        #     model_maintainer["E"][1] = random.sample(mask_i_possible_list, E_number)
+        #     model_maintainer["E"][0] = len(model_maintainer["E"][1])
+        #     tmp_list = [e for e in tmp_list if e not in model_maintainer["E"][1]]
+        # else:
+        #     model_maintainer["E"][1] = []
+
+        # init G
+        read_path = people_interactive_graph_path
+
+        with open(read_path, "rb") as G_input_file:
+            z = pickle.load(G_input_file)
+            # print(f"z: {z}")
+            # print(f"z_type: {type(z)}")
+            # print(f"read_path: {read_path}")
+            G = self.build_edge(z, day, hour)
+
         if model_number_dict['E_number'] > 0:
-            mask_i_possible_list = []
-            combine_I = []
-            combine_I.extend(model_maintainer["I"][1])
-            # combine_I.extend(model_maintainer["Mask_I"][1])
-            for infect_person in combine_I:
+            E_possible_list = []
+
+            for infect_person in model_maintainer["I"][1]:
                 if G.has_node(infect_person):
-                    successors_list = G.successors(infect_person)
-                    mask_i_possible_list.extend(successors_list)
-            mask_i_possible_list = [e for e in mask_i_possible_list if e in tmp_list]
-            E_number = model_number_dict['E_number'];
-            if model_number_dict['E_number'] > len(mask_i_possible_list):
-                E_number = len(mask_i_possible_list)
-                model_maintainer["E"][0] = E_number
-                print("E_number change", E_number)
-            model_maintainer["E"][1] = random.sample(mask_i_possible_list, E_number)
+                    E_possible_list.extend(list(G.successors(infect_person)))
+
+            num_E_from_possible_list = model_number_dict['E_number']
+            num_E_from_S = 0
+
+            if model_number_dict['E_number'] > len(E_possible_list):
+                num_E_from_S = model_number_dict['E_number'] - len(E_possible_list)
+                num_E_from_possible_list = len(E_possible_list)
+            model_maintainer["E"][1] = random.sample(E_possible_list, num_E_from_possible_list)
             model_maintainer["E"][0] = len(model_maintainer["E"][1])
+
+            if num_E_from_S > 0:
+                model_maintainer["E"][1].extend(random.sample(tmp_list, num_E_from_S))
+                model_maintainer["E"][0] = len(model_maintainer["E"][1])
+
             tmp_list = [e for e in tmp_list if e not in model_maintainer["E"][1]]
         else:
             model_maintainer["E"][1] = []
+            model_maintainer["E"][0] = 0
+
         if model_number_dict['S_number'] > 0:
             model_maintainer["S"][1] = random.sample(tmp_list, int(model_number_dict['S_number']))
             # tmp_list = [e for e in tmp_list if e not in model_maintainer["S"][1]]
         else:
             model_maintainer["S"][1] = []
+
         return model_maintainer
 
-    # S-->E-->I-->R
+    # S-->E-->|I|-->R
     # S-->Sq-->S
     # S-->Eq-->H-->R
-    # S-->E-->I-->H-->R
+    # S-->E-->|I|-->H-->R
     def model_update(self, day, hour, old_model_maintainer, next_time_step):
         matfn = SEIR_simulation_result_statistic
         model = sio.loadmat(matfn)["AA"]
+        tmp_id_list = self.find_tmp_id_list()
         # {key:type,value:[chage_number,[id_1,id_2,id_3...]]}
         print("next_time_step", next_time_step)
         new_model_maintainer, model_number_dict = SEIR_utils.init_model_maintainer(model, next_time_step,
@@ -179,54 +248,128 @@ class SEIR():
         old_S_number = old_model_maintainer["S"][0]
         old_E_number = old_model_maintainer["E"][0]
         old_I_number = old_model_maintainer["I"][0]
-        # old_Mask_I_number = old_model_maintainer["Mask_I"][0]
         old_Sq_number = old_model_maintainer["Sq"][0]
         old_Eq_number = old_model_maintainer["Eq"][0]
         old_H_number = old_model_maintainer["H"][0]
         old_R_number = old_model_maintainer["R"][0]
 
+        new_model_maintainer["S"][1] = old_model_maintainer["S"][1]
+        new_model_maintainer["E"][1] = old_model_maintainer["E"][1]
+        new_model_maintainer["I"][1] = old_model_maintainer["I"][1]
+        new_model_maintainer["R"][1] = old_model_maintainer["R"][1]
+        new_model_maintainer["Sq"][1] = old_model_maintainer["Sq"][1]
+        new_model_maintainer["Eq"][1] = old_model_maintainer["Eq"][1]
+        new_model_maintainer["H"][1] = old_model_maintainer["H"][1]
+
         update_flag = False
 
-        S_number = int(model_number_dict['S_number'])
-        old_S_number = int(old_S_number)
-        if S_number > old_S_number:
-            delta_S = S_number - old_S_number
-            len_old_Sq = len(old_model_maintainer["Sq"][1])
-            if len_old_Sq < delta_S:
-                delta_S = len_old_Sq
-                new_model_maintainer["S"][0] = delta_S
-            old_model_maintainer["S"][1].extend(random.sample(old_model_maintainer["Sq"][1], delta_S))
-            new_model_maintainer["S"][1] = old_model_maintainer["S"][1]
-            old_model_maintainer["Sq"][1] = [e for e in old_model_maintainer["Sq"][1] if
-                                             e not in new_model_maintainer["S"][1]]
+        # R update (1) from old I and old H
+        R_number = int(model_number_dict['R_number'])
+        old_R_number = int(old_model_maintainer["R"][0])
+
+        if R_number >= old_R_number:
+            delta_R = R_number - old_R_number
+
+            R_number_from_H = old_model_maintainer["H"][0] if old_model_maintainer["H"][
+                                                                  0] < delta_R // 2 else delta_R // 2
+            R_number_from_I = old_model_maintainer["I"][0] if old_model_maintainer["I"][0] < (
+                    delta_R - R_number_from_H) else (delta_R - R_number_from_H)
+
+            new_model_maintainer["R"][1].extend(random.sample(old_model_maintainer["I"][1], R_number_from_I))
+            new_model_maintainer["R"][0] = len(new_model_maintainer["R"][1])
+            old_model_maintainer["I"][1] = [e for e in old_model_maintainer["I"][1] if
+                                            e not in new_model_maintainer["R"][1]]
+            old_model_maintainer["I"][0] = len(old_model_maintainer["I"][1])
+
+            new_model_maintainer["R"][1].extend(random.sample(old_model_maintainer["H"][1], R_number_from_H))
+            new_model_maintainer["R"][0] = len(new_model_maintainer["R"][1])
+            old_model_maintainer["H"][1] = [e for e in old_model_maintainer["H"][1] if
+                                            e not in new_model_maintainer["R"][1]]
+            old_model_maintainer["H"][0] = len(old_model_maintainer["H"][1])
+
             update_flag = True
         else:
-            new_model_maintainer["S"][1] = old_model_maintainer["S"][1]
-            new_model_maintainer["S"][0] = len(new_model_maintainer["S"][1])
+            new_model_maintainer["R"][1] = old_model_maintainer["R"][1]
+            new_model_maintainer["R"][0] = len(new_model_maintainer["R"][1])
+
+        # H update (5) from old Eq and old I
+        H_number = int(model_number_dict['H_number'])
+        old_H_number = int(old_model_maintainer["H"][0])
+
+        if H_number >= old_H_number:
+            delta_H = H_number - old_H_number
+            H_number_from_Eq = old_model_maintainer["Eq"][0] if old_model_maintainer["Eq"][
+                                                                    0] < delta_H // 2 else delta_H // 2
+            H_number_from_I = old_model_maintainer["I"][0] if old_model_maintainer["I"][0] < (
+                    delta_H - H_number_from_Eq) else (delta_H - H_number_from_Eq)
+
+            new_model_maintainer["H"][1].extend(random.sample(old_model_maintainer["I"][1], H_number_from_I))
+            new_model_maintainer["H"][0] = len(new_model_maintainer["H"][1])
+            old_model_maintainer["I"][1] = [e for e in old_model_maintainer["I"][1] if
+                                            e not in new_model_maintainer["H"][1]]
+            old_model_maintainer["I"][0] = len(old_model_maintainer["I"][1])
+
+            new_model_maintainer["H"][1].extend(random.sample(old_model_maintainer["Eq"][1], H_number_from_Eq))
+            new_model_maintainer["H"][0] = len(new_model_maintainer["H"][1])
+            old_model_maintainer["Eq"][1] = [e for e in old_model_maintainer["Eq"][1] if
+                                             e not in new_model_maintainer["H"][1]]
+            old_model_maintainer["Eq"][0] = len(old_model_maintainer["Eq"][1])
+
+            update_flag = True
+        else:
+            new_model_maintainer["H"][1] = old_model_maintainer["H"][1]
+            new_model_maintainer["H"][0] = len(new_model_maintainer["H"][1])
+
+        # I update (2) from old E
+        I_number = int(model_number_dict['I_number'])
+        old_I_number = int(old_model_maintainer["I"][0])
+
+        if I_number >= old_I_number:
+            delta_I = I_number - old_I_number
+            delta_I_from_E = old_model_maintainer["E"][0] if old_model_maintainer["E"][0] < delta_I else delta_I
+
+            new_model_maintainer["I"][1].extend(random.sample(old_model_maintainer["E"][1], delta_I_from_E))
+            new_model_maintainer["I"][0] = len(new_model_maintainer["I"][1])
+            old_model_maintainer["E"][1] = [e for e in old_model_maintainer["E"][1] if
+                                            e not in new_model_maintainer["I"][1]]
+            old_model_maintainer["E"][0] = len(old_model_maintainer["E"][1])
+            update_flag = True
+        else:
+            new_model_maintainer["I"][1] = old_model_maintainer["I"][1]
+            new_model_maintainer["I"][0] = old_model_maintainer["I"][0]
+
+        # Ready the IDG to decide E from I
+        read_path = graph_path_root + str(day) + "_" + str(int(hour))
+        with open(read_path, "rb") as graph_input_file:
+            z = pickle.load(graph_input_file)
+            G = self.build_edge(z, day, hour)
+        possible_list = []
+
+        for infect_person in new_model_maintainer["I"][1]:
+
+            if G.has_node(infect_person):
+                successors_list = G.successors(infect_person)
+                possible_list.extend(successors_list)
+        # 避免閉環
+        e_possible_list = [e for e in possible_list if e in old_model_maintainer["S"][1]]
+        e_possible_list = [e for e in e_possible_list if e in tmp_id_list]
+        eq_possible_list = [e for e in possible_list if e in old_model_maintainer["Sq"][1]]
+        eq_possible_list = [e for e in eq_possible_list if e in tmp_id_list]
+
+        # E update (3) from old S affected by old I
         E_number = int(model_number_dict['E_number'])
         old_E_number = int(old_E_number)
-        if E_number > old_E_number:
+
+        if E_number >= old_E_number:
             delta_E = E_number - old_E_number
-            len_new_S = len(new_model_maintainer["S"][1])
+            len_new_S = len(old_model_maintainer["S"][1])
+
             if len_new_S < delta_E:
                 delta_E = len_new_S
-            read_path = graph_path_root + str(day) + "_" + str(int(hour))
-            with open(read_path, "rb") as graph_input_file:
-                z = pickle.load(graph_input_file)
-                G = self.build_edge(z, day, hour)
-            e_possible_list = []
-            print("old_model_maintainer['I'][1]")
-            # print(old_model_maintainer["Mask_I"][1])
-            comb = []
-            comb.extend(old_model_maintainer["I"][1])
-            # Mask_I for verification
-            # comb.extend(old_model_maintainer["Mask_I"][1])
-            for infect_person in comb:
-                if G.has_node(infect_person):
-                    successors_list = G.successors(infect_person)
-                    e_possible_list.extend(successors_list)
-            e_possible_list = [e for e in e_possible_list if e in new_model_maintainer["S"][1]]
+
+            # sup_E 避免可能的候選者太少的情況下 隨機選取S狀態中的剩餘者
             sup_E = 0
+
             if delta_E > len(e_possible_list):
                 sup_E = delta_E - len(e_possible_list)
                 delta_E = len(e_possible_list)
@@ -234,165 +377,89 @@ class SEIR():
             old_model_maintainer["E"][1].extend(random.sample(e_possible_list, delta_E))
             new_model_maintainer["E"][1] = old_model_maintainer["E"][1]
             new_model_maintainer["E"][0] = len(new_model_maintainer["E"][1])
-            new_model_maintainer["S"][1] = [e for e in new_model_maintainer["S"][1] if
+            old_model_maintainer["S"][1] = [e for e in old_model_maintainer["S"][1] if
                                             e not in new_model_maintainer["E"][1]]
-            print("sup_E")
-            print("len_S", len(new_model_maintainer["S"][1]))
-            sup_E_list = random.sample(new_model_maintainer["S"][1], sup_E)
+            old_model_maintainer["S"][0] = len(old_model_maintainer["S"][1])
+            sup_E_list = random.sample(old_model_maintainer["S"][1], sup_E)
             new_model_maintainer["E"][1].extend(sup_E_list)
             new_model_maintainer["E"][0] = len(new_model_maintainer["E"][1])
-            new_model_maintainer["S"][1] = [e for e in new_model_maintainer["S"][1] if e not in sup_E_list]
+            old_model_maintainer["S"][1] = [e for e in old_model_maintainer["S"][1] if e not in sup_E_list]
+            old_model_maintainer["S"][0] = len(old_model_maintainer["S"][1])
             update_flag = True
         else:
-            new_model_maintainer["E"][1] = old_model_maintainer["E"][1]
-            new_model_maintainer["E"][0] = old_model_maintainer["E"][0]
-
-        Sq_number = int(model_number_dict['Sq_number'])
-        old_Sq_number = int(old_Sq_number)
-        if Sq_number > old_Sq_number:
-            delta_Sq = Sq_number - old_Sq_number
-            len_new_S = len(new_model_maintainer["S"][1])
-            if len_new_S < delta_Sq:
-                delta_Sq = len_new_S
-                new_model_maintainer["Sq"][0] = delta_Sq
-            old_model_maintainer["Sq"][1].extend(random.sample(new_model_maintainer["S"][1], delta_Sq))
-            new_model_maintainer["Sq"][1] = old_model_maintainer["Sq"][1]
-            new_model_maintainer["Sq"][0] = len(new_model_maintainer["Sq"][1])
-            new_model_maintainer["S"][1] = [e for e in new_model_maintainer["S"][1] if
-                                            e not in new_model_maintainer["Sq"][1]]
-            new_model_maintainer["S"][0] = len(new_model_maintainer["S"][1])
+            # sup_E 避免可能的候選者太少的情況下 隨機選取S狀態中的剩餘者
+            sup_E = len(e_possible_list)
+            sup_E_list = random.sample(old_model_maintainer["S"][1], sup_E)
+            new_model_maintainer["E"][1].extend(sup_E_list)
+            new_model_maintainer["E"][0] = len(new_model_maintainer["E"][1])
+            old_model_maintainer["S"][1] = [e for e in old_model_maintainer["S"][1] if e not in sup_E_list]
+            old_model_maintainer["S"][0] = len(old_model_maintainer["S"][1])
             update_flag = True
-        else:
-            new_model_maintainer["Sq"][1] = old_model_maintainer["Sq"][1]
-            new_model_maintainer["Sq"][0] = len(new_model_maintainer["Sq"][1])
 
+        # Eq update (4) from Sq, S, and E affected by I
         Eq_number = int(model_number_dict['Eq_number'])
-        old_Eq_number = int(old_Eq_number)
-        if Eq_number > old_Eq_number:
+        old_Eq_number = int(old_model_maintainer["Eq"][0])
+
+        if Eq_number >= old_Eq_number:
             delta_Eq = Eq_number - old_Eq_number
-            len_new_S = len(new_model_maintainer["S"][1])
-            if len_new_S < delta_Eq:
-                delta_Eq = len_new_S
-                new_model_maintainer["Eq"][0] = delta_Eq
-            old_model_maintainer["Eq"][1].extend(random.sample(new_model_maintainer["S"][1], delta_Eq))
+            delta_Eq_from_E = new_model_maintainer["E"][0] if new_model_maintainer["E"][
+                                                                  0] < delta_Eq // 3 else delta_Eq // 3
+            delta_Eq_from_Sq = old_model_maintainer["Sq"][0] if old_model_maintainer["Sq"][
+                                                                    0] < delta_Eq // 3 else delta_Eq // 3
+            delta_Eq_from_S = old_model_maintainer["S"][0] if old_model_maintainer["Sq"][0] < (
+                    delta_Eq - delta_Eq_from_E - delta_Eq_from_Sq) else (
+                    delta_Eq - delta_Eq_from_E - delta_Eq_from_Sq)
+
+            # update Eq from old S
+            old_model_maintainer["Eq"][1].extend(random.sample(old_model_maintainer["S"][1], delta_Eq_from_S))
             new_model_maintainer["Eq"][1] = old_model_maintainer["Eq"][1]
             new_model_maintainer["Eq"][0] = len(new_model_maintainer["Eq"][1])
-            new_model_maintainer["S"][1] = [e for e in new_model_maintainer["S"][1] if
+            old_model_maintainer["S"][1] = [e for e in old_model_maintainer["S"][1] if
                                             e not in new_model_maintainer["Eq"][1]]
-            new_model_maintainer["S"][0] = len(new_model_maintainer["S"][1])
-            update_flag = True
-        else:
-            new_model_maintainer["Eq"][1] = old_model_maintainer["Eq"][1]
+            old_model_maintainer["S"][0] = len(old_model_maintainer["S"][1])
+
+            # update Eq from new E
+            new_model_maintainer["Eq"][1].extend(random.sample(new_model_maintainer["E"][1], delta_Eq_from_E))
             new_model_maintainer["Eq"][0] = len(new_model_maintainer["Eq"][1])
-
-        I_number = int(model_number_dict['I_number'])
-        old_I_number = int(old_I_number)
-        if I_number > old_I_number:
-            delta_I = I_number - old_I_number
-            len_new_E = len(new_model_maintainer["E"][1])
-            if len_new_E < delta_I:
-                delta_I = len_new_E
-            # I_number_split_1, I_number_split_2 = SEIR_utils.split_number(delta_I)
-            # if I_number_split_1 > len(new_model_maintainer["E"][1]):
-            #     I_number_split_1 = len(new_model_maintainer["E"][1])
-            #     new_model_maintainer["I"][0] = I_number_split_1
-
-            if delta_I > len(new_model_maintainer["E"][1]):
-                delta_I = len(new_model_maintainer["E"][1])
-                new_model_maintainer["I"][0] = delta_I
-            # old_model_maintainer["I"][1].extend(random.sample(new_model_maintainer["E"][1], I_number_split_1))
-            old_model_maintainer["I"][1].extend(random.sample(new_model_maintainer["E"][1], delta_I))
-            new_model_maintainer["I"][1] = old_model_maintainer["I"][1]
-            new_model_maintainer["I"][0] = len(new_model_maintainer["I"][1])
             new_model_maintainer["E"][1] = [e for e in new_model_maintainer["E"][1] if
-                                            e not in new_model_maintainer["I"][1]]
+                                            e not in new_model_maintainer["Eq"][1]]
             new_model_maintainer["E"][0] = len(new_model_maintainer["E"][1])
-            # new_model_maintainer.update({"Mask_I": [I_number_split_2, []]})
-            # if I_number_split_2 > len(new_model_maintainer["E"][1]):
-            #     I_number_split_2 = len(new_model_maintainer["E"][1])
-            #     new_model_maintainer["Mask_I"][0] = I_number_split_2
-            # old_model_maintainer["Mask_I"][1].extend(random.sample(new_model_maintainer["E"][1], I_number_split_2))
-            # new_model_maintainer["Mask_I"][1] = old_model_maintainer["Mask_I"][1]
-            # new_model_maintainer["Mask_I"][0] = len(new_model_maintainer["Mask_I"][1])
-            # new_model_maintainer["E"][1] = [e for e in new_model_maintainer["E"][1] if
-            #                                 e not in new_model_maintainer["Mask_I"][1]]
-            new_model_maintainer["E"][0] = len(new_model_maintainer["E"][1])
-            update_flag = True
-        else:
-            new_model_maintainer["I"][1] = old_model_maintainer["I"][1]
-            new_model_maintainer["I"][0] = old_model_maintainer["I"][0]
-            # print("Mask_I_len")
-            # print(len(old_model_maintainer["Mask_I"]))
-            # new_model_maintainer.update({"Mask_I": [old_model_maintainer["Mask_I"][0], []]})
-            # new_model_maintainer["Mask_I"][1] = old_model_maintainer["Mask_I"][1]
 
-        H_number = int(model_number_dict['H_number'])
-        old_H_number = int(old_H_number)
-
-        if H_number > old_H_number:
-            delta_H = H_number - old_H_number
-            if delta_H % 2 != 0:  # odd
-                H_number_split_1 = int((delta_H - 1) / 2 + 1)
-                H_number_split_2 = int((delta_H - 1) / 2)
-            else:  # even
-                H_number_split_1 = int((delta_H - 1) / 2)
-                H_number_split_2 = H_number_split_1
-
-            len_new_I = len(new_model_maintainer["I"][1])
-            if len_new_I < H_number_split_1:
-                H_number_split_1 = len_new_I
-            s1 = random.sample(new_model_maintainer["I"][1], H_number_split_1)
-            new_model_maintainer["H"][1] = [e for e in new_model_maintainer["I"][1] if e not in s1]
-            new_model_maintainer["H"][0] = len(new_model_maintainer["H"][1])
-
-            len_new_Eq = len(new_model_maintainer["Eq"][1])
-            if len_new_Eq < H_number_split_2:
-                H_number_split_2 = len_new_Eq
-            s2 = random.sample(new_model_maintainer["Eq"][1], H_number_split_2)
-            new_model_maintainer["Eq"][1] = [e for e in new_model_maintainer["Eq"][1] if e not in s2]
+            # update Eq from old Sq
+            new_model_maintainer["Eq"][1].extend(random.sample(new_model_maintainer["Sq"][1], delta_Eq_from_Sq))
             new_model_maintainer["Eq"][0] = len(new_model_maintainer["Eq"][1])
+            old_model_maintainer["Sq"][1] = [e for e in old_model_maintainer["Sq"][1] if
+                                             e not in new_model_maintainer["Eq"][1]]
+            old_model_maintainer["Sq"][0] = len(old_model_maintainer["Sq"][1])
 
-            s1.extend(s2)
-            old_model_maintainer["H"][1].extend(s1)
-            new_model_maintainer["H"][1] = old_model_maintainer["H"][1]
-            new_model_maintainer["H"][0] = len(new_model_maintainer["H"][1])
             update_flag = True
         else:
-            new_model_maintainer["H"][1] = old_model_maintainer["H"][1]
-            new_model_maintainer["H"][0] = len(new_model_maintainer["H"][1])
+            sup_Eq = len(eq_possible_list)
+            sup_Eq_list = random.sample(old_model_maintainer["Sq"][1], sup_Eq)
+            new_model_maintainer["Eq"][1].extend(sup_Eq_list)
+            new_model_maintainer["Eq"][0] = len(new_model_maintainer["Eq"][1])
+            old_model_maintainer["Sq"][1] = [e for e in old_model_maintainer["Sq"][1] if e not in sup_Eq_list]
+            old_model_maintainer["Sq"][0] = len(old_model_maintainer["Sq"][1])
+            update_flag = True
 
-        R_number = int(model_number_dict['R_number'])
-        old_R_number = int(old_R_number)
-        if R_number > old_R_number:
-            delta_R = R_number - old_R_number
-            if delta_R % 2 != 0:  # odd
-                R_number_split_1 = int((delta_R - 1) / 2 + 1)
-                R_number_split_2 = int((delta_R - 1) / 2)
-            else:  # even
-                R_number_split_1 = int((delta_R - 1) / 2)
-                R_number_split_2 = R_number_split_1
-            # s1
-            len_new_I = len(new_model_maintainer["I"][1])
-            if len_new_I < R_number_split_1:
-                R_number_split_1 = len_new_I
-            s1 = random.sample(new_model_maintainer["I"][1], R_number_split_1)
-            new_model_maintainer["I"][1] = [e for e in new_model_maintainer["I"][1] if e not in s1]
-            new_model_maintainer["I"][0] = len(new_model_maintainer["I"][1])
-            # s2
-            len_new_H = len(new_model_maintainer["H"][1])
-            if len_new_H < R_number_split_2:
-                R_number_split_2 = len_new_H
-            s2 = random.sample(new_model_maintainer["H"][1], R_number_split_2)
-            new_model_maintainer["H"][1] = [e for e in new_model_maintainer["H"][1] if e not in s2]
-            new_model_maintainer["H"][0] = len(new_model_maintainer["H"][1])
-            # combine
-            s1.extend(s2)
-            old_model_maintainer["R"][1].extend(s1)
-            new_model_maintainer["R"][1] = old_model_maintainer["R"][1]
-            new_model_maintainer["R"][0] = len(new_model_maintainer["R"][1])
+        # Sq update from new S
+        Sq_number = int(model_number_dict['Sq_number'])
+        old_Sq_number = int(old_model_maintainer["Sq"][0])
+
+        if Sq_number >= old_Sq_number:
+            delta_Sq = Sq_number - old_Sq_number
+            delta_Sq_from_S = old_model_maintainer["S"][0] if old_model_maintainer["S"][0] < delta_Sq else delta_Sq
+            new_model_maintainer["Sq"][1].extend(random.sample(old_model_maintainer["S"][1], delta_Sq_from_S))
+            new_model_maintainer["Sq"][0] = len(new_model_maintainer["Sq"][1])
+            old_model_maintainer["S"][1] = [e for e in old_model_maintainer["S"][1] if
+                                            e not in new_model_maintainer["Sq"][1]]
+            old_model_maintainer["S"][0] = len(old_model_maintainer["S"][1])
             update_flag = True
         else:
-            new_model_maintainer["R"][1] = old_model_maintainer["R"][1]
-            new_model_maintainer["R"][0] = len(new_model_maintainer["R"][1])
+            new_model_maintainer["Sq"][1] = old_model_maintainer["Sq"][1]
+            new_model_maintainer["Sq"][0] = len(new_model_maintainer["Sq"][1])
+
+        new_model_maintainer["S"][0] = old_model_maintainer["S"][0]
+        new_model_maintainer["S"][1] = old_model_maintainer["S"][1]
 
         return new_model_maintainer, update_flag
